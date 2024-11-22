@@ -1,0 +1,655 @@
+---
+title: "FDA_P"
+author: "Parangat Singh(20BRS1154)"
+date: "2024-10-08"
+output: html_document
+---
+
+```{r}
+#install.packages('ggpubr')
+
+```
+
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(corrplot)
+library(ggpubr)
+
+# Load datasets
+dev_assistance <- read.csv("C:\\Users\\DELL\\Downloads\\Indicator_6.a.1__Total_official_development_assistance_gross_disbursement_for_water_supply_and_sanitation_by_recipient_countries_millions_of_constant_2017_United_States_dollars.csv")
+health_regulations <- read.csv("C:\\Users\\DELL\\Downloads\\Indicator_3.d.1__International_Health_Regulations_IHR_capacity_by_type_of_IHR_capacity_percent.csv")
+mortality_rate <- read.csv("C:\\Users\\DELL\\Downloads\\Indicator_3.9.2__Mortality_rate_attributed_to_unsafe_water_unsafe_sanitation_and_lack_of_hygiene_deaths_per_100000_population.csv")
+
+# Inspect the datasets
+str(dev_assistance)
+str(health_regulations)
+str(mortality_rate)
+
+# Clean and preprocess data
+dev_assistance_clean <- dev_assistance %>% drop_na(value_latest_year)
+mortality_rate_clean <- mortality_rate %>% drop_na(value_latest_year)
+
+# Merge datasets by "geoAreaName"
+merged_data <- merge(dev_assistance_clean, mortality_rate_clean, by = "geoAreaName", all = TRUE)
+
+# Check the structure of the merged data
+str(merged_data)
+
+# Calculate correlation between development assistance and mortality rate
+correlation <- cor(merged_data$value_latest_year.x, merged_data$value_latest_year.y, use = "complete.obs")
+print(paste("Correlation: ", correlation))
+
+# Scatter plot for Development Assistance vs Mortality Rate
+scatter_plot <- ggplot(merged_data, aes(x = value_latest_year.x, y = value_latest_year.y)) +
+  geom_point() +
+  geom_smooth(method = "lm", col = "blue") +
+  ggtitle("Development Assistance vs Mortality Rate (Unsafe Water)") +
+  xlab("Development Assistance (millions)") +
+  ylab("Mortality Rate (Deaths per 100,000 Population)")
+
+# Print the scatter plot
+print(scatter_plot)
+
+# Fit linear regression model
+model <- lm(value_latest_year.y ~ value_latest_year.x, data = merged_data)
+
+# Summary of the model
+model_summary <- summary(model)
+print(model_summary)
+
+# Residual plot
+residuals <- resid(model)
+plot(residuals, main = "Residual Plot for Development Assistance vs Mortality Rate", ylab = "Residuals")
+abline(h = 0, col = "red")  # Add horizontal line at 0
+
+# Permutation test for significance of the slope
+set.seed(42)  # For reproducibility
+perm_results <- replicate(1000, {
+  shuffled_data <- merged_data
+  shuffled_data$value_latest_year.x <- sample(shuffled_data$value_latest_year.x)
+  model_perm <- lm(value_latest_year.y ~ value_latest_year.x, data = shuffled_data)
+  coef(model_perm)[2]  # Extract the slope
+})
+
+# Plot histogram of permutation results
+hist(perm_results, main = "Permutation Test: Development Assistance vs Mortality Rate", xlab = "Slope")
+
+# Save the scatter plot as a PNG
+ggsave("scatterplot_uhc_vs_mortality.png")
+```
+
+```{r}
+#install.packages('caret')  # For machine learning
+```
+
+```{r}
+```
+
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(corrplot)
+library(ggpubr)
+library(caret)
+
+# Load datasets
+dev_assistance <- read.csv("C:\\Users\\DELL\\Downloads\\Indicator_6.a.1__Total_official_development_assistance_gross_disbursement_for_water_supply_and_sanitation_by_recipient_countries_millions_of_constant_2017_United_States_dollars.csv")
+health_regulations <- read.csv("C:\\Users\\DELL\\Downloads\\Indicator_3.d.1__International_Health_Regulations_IHR_capacity_by_type_of_IHR_capacity_percent.csv")
+mortality_rate <- read.csv("C:\\Users\\DELL\\Downloads\\Indicator_3.9.2__Mortality_rate_attributed_to_unsafe_water_unsafe_sanitation_and_lack_of_hygiene_deaths_per_100000_population.csv")
+
+# Inspect the datasets
+str(dev_assistance)
+str(health_regulations)
+str(mortality_rate)
+
+# Clean and preprocess data
+dev_assistance_clean <- dev_assistance %>% drop_na(value_latest_year)
+mortality_rate_clean <- mortality_rate %>% drop_na(value_latest_year)
+
+# Merge datasets by "geoAreaName"
+merged_data <- merge(dev_assistance_clean, mortality_rate_clean, by = "geoAreaName", all = TRUE)
+
+# Check the structure of the merged data
+str(merged_data)
+
+# 1. Correlation Analysis
+correlation <- cor(merged_data$value_latest_year.x, merged_data$value_latest_year.y, use = "complete.obs")
+print(paste("Correlation between Development Assistance and Mortality Rate: ", correlation))
+
+# Scatter plot for Development Assistance vs Mortality Rate
+ggplot(merged_data, aes(x = value_latest_year.x, y = value_latest_year.y)) +
+  geom_point() +
+  geom_smooth(method = "lm", col = "blue") +
+  ggtitle("Development Assistance vs Mortality Rate (Unsafe Water)") +
+  xlab("Development Assistance (millions)") +
+  ylab("Mortality Rate (Deaths per 100,000 Population)")
+
+# 2. Linear Regression Model
+model <- lm(value_latest_year.y ~ value_latest_year.x, data = merged_data)
+summary(model)
+
+# Residual analysis for regression model
+residuals <- resid(model)
+plot(residuals, main = "Residual Plot for Development Assistance vs Mortality Rate", ylab = "Residuals")
+abline(h = 0, col = "red")  # Add horizontal line at 0
+
+# 3. Multiple Linear Regression
+# Assuming additional health-related variables could be included from the health_regulations dataset
+# Clean health_regulations dataset for further analysis
+health_regulations_clean <- health_regulations %>% drop_na(ISO3)  # Drop rows with missing ISO3 codes for merging
+merged_data_extended <- merge(merged_data, health_regulations_clean, by.x = "geoAreaName", by.y = "geoAreaName", all = TRUE)
+
+# Fit a multiple regression model
+multi_model <- lm(value_latest_year.y ~ value_latest_year.x + ISO3 , data = merged_data_extended) # Replace 'other_health_variable' with actual variable names
+summary(multi_model)
+
+# 4. Permutation Testing
+set.seed(42)  # For reproducibility
+perm_results <- replicate(1000, {
+  shuffled_data <- merged_data
+  shuffled_data$value_latest_year.x <- sample(shuffled_data$value_latest_year.x)
+  model_perm <- lm(value_latest_year.y ~ value_latest_year.x, data = shuffled_data)
+  coef(model_perm)[2]  # Extract the slope
+})
+
+# Plot histogram of permutation results
+hist(perm_results, main = "Permutation Test: Development Assistance vs Mortality Rate", xlab = "Slope")
+
+# 5. Additional Analysis: Health Coverage and Mortality Rate
+# Create scatter plot for health coverage (if applicable)
+ggplot(health_regulations_clean, aes(x = seriesCode, y = value_latest_year)) +
+  geom_point() +
+  geom_smooth(method = "lm", col = "red") +
+  ggtitle("Health Coverage vs Mortality Rate") +
+  xlab("Health Coverage Index (Series Code)") +
+  ylab("Mortality Rate (Deaths per 100,000 Population)")
+
+# Save plots
+ggsave("scatterplot_dev_assistance_vs_mortality.png")
+ggsave("scatterplot_health_coverage_vs_mortality.png")
+
+```
+
+```{r}
+# Check the structure of health regulations dataset
+str(health_regulations)
+
+```
+
+```{r}
+# Load necessary libraries
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(corrplot)
+library(ggpubr)
+library(caret)
+
+# Load datasets
+dev_assistance <- read.csv("C:\\Users\\DELL\\Downloads\\Indicator_6.a.1__Total_official_development_assistance_gross_disbursement_for_water_supply_and_sanitation_by_recipient_countries_millions_of_constant_2017_United_States_dollars.csv")
+health_regulations <- read.csv("C:\\Users\\DELL\\Downloads\\Indicator_3.d.1__International_Health_Regulations_IHR_capacity_by_type_of_IHR_capacity_percent.csv")
+mortality_rate <- read.csv("C:\\Users\\DELL\\Downloads\\Indicator_3.9.2__Mortality_rate_attributed_to_unsafe_water_unsafe_sanitation_and_lack_of_hygiene_deaths_per_100000_population.csv")
+
+# Clean and preprocess data
+dev_assistance_clean <- dev_assistance %>% drop_na(value_latest_year)
+mortality_rate_clean <- mortality_rate %>% drop_na(value_latest_year)
+
+# Merge datasets by "geoAreaName"
+merged_data <- merge(dev_assistance_clean, mortality_rate_clean, by = "geoAreaName", all = TRUE)
+
+# Check the structure of the merged data
+str(merged_data)
+
+# 1. Correlation Analysis
+correlation <- cor(merged_data$value_latest_year.x, merged_data$value_latest_year.y, use = "complete.obs")
+print(paste("Correlation between Development Assistance and Mortality Rate: ", correlation))
+
+# 2. Scatter Plot for Development Assistance vs Mortality Rate
+ggplot(merged_data, aes(x = value_latest_year.x, y = value_latest_year.y)) +
+  geom_point() +
+  geom_smooth(method = "lm", col = "blue") +
+  ggtitle("Development Assistance vs Mortality Rate (Unsafe Water)") +
+  xlab("Development Assistance (millions)") +
+  ylab("Mortality Rate (Deaths per 100,000 Population)")
+
+# 3. Linear Regression Model
+model <- lm(value_latest_year.y ~ value_latest_year.x, data = merged_data)
+summary(model)
+
+# 4. Residual Analysis for Regression Model
+residuals <- resid(model)
+plot(residuals, main = "Residual Plot for Development Assistance vs Mortality Rate", ylab = "Residuals")
+abline(h = 0, col = "red")  # Add horizontal line at 0
+
+# 5. Multiple Linear Regression
+# Assume you want to include the `value_latest_year` from the health regulations dataset.
+health_regulations_clean <- health_regulations %>% drop_na(geoAreaName)  # Ensure we have no NA for merging
+merged_data_extended <- merge(merged_data, health_regulations_clean, by = "geoAreaName", all = TRUE)
+
+# Fit a multiple regression model using health coverage from the latest year
+# Here we assume `value_latest_year` in health_regulations is appropriate; you may choose different year columns as needed.
+multi_model <- lm(value_latest_year.y ~ value_latest_year.x + value_latest_year, data = merged_data_extended)  # Use the relevant health variable
+summary(multi_model)
+
+# 6. Permutation Testing for Significance of the Slope
+set.seed(42)  # For reproducibility
+perm_results <- replicate(1000, {
+  shuffled_data <- merged_data
+  shuffled_data$value_latest_year.x <- sample(shuffled_data$value_latest_year.x)
+  model_perm <- lm(value_latest_year.y ~ value_latest_year.x, data = shuffled_data)
+  coef(model_perm)[2]  # Extract the slope
+})
+
+# Plot histogram of permutation results
+hist(perm_results, main = "Permutation Test: Development Assistance vs Mortality Rate", xlab = "Slope")
+
+# 7. Additional Analysis: Health Coverage Over Time
+# Explore health coverage trends
+health_trends <- health_regulations %>% 
+  select(geoAreaName, starts_with("value_")) %>% 
+  pivot_longer(cols = starts_with("value_"), names_to = "Year", values_to = "Coverage") %>%
+  mutate(Year = sub("value_", "", Year))
+
+ggplot(health_trends, aes(x = Year, y = Coverage, color = geoAreaName)) +
+  geom_line() +
+  ggtitle("Health Coverage Over Time by Country") +
+  xlab("Year") +
+  ylab("Health Coverage Index") +
+  theme_minimal()
+
+# 8. Save Plots
+ggsave("scatterplot_dev_assistance_vs_mortality.png")
+ggsave("health_coverage_over_time.png")
+```
+
+```{r}
+# Check unique levels of the Assistance_Category
+unique(merged_data$Assistance_Category)
+
+# If levels are insufficient, redefine categories
+merged_data$Assistance_Category <- cut(merged_data$value_latest_year.x,
+                                        breaks = c(-Inf, 0, 50, 200, Inf),  # Adjust as necessary
+                                        labels = c("None", "Low", "Medium", "High"))
+
+# Check the counts of each category to ensure they are sufficient
+table(merged_data$Assistance_Category)
+
+# Run ANOVA if there are sufficient levels
+if (length(unique(merged_data$Assistance_Category)) > 1) {
+    anova_result <- aov(value_latest_year.y ~ Assistance_Category, data = merged_data)
+    print(summary(anova_result))
+    
+    # Visualize ANOVA results
+    ggplot(merged_data, aes(x = Assistance_Category, y = value_latest_year.y)) +
+      geom_boxplot() +
+      ggtitle("Mortality Rate by Development Assistance Category") +
+      xlab("Development Assistance Category") +
+      ylab("Mortality Rate (Deaths per 100,000 Population)")
+} else {
+    print("Not enough levels in Assistance_Category for ANOVA.")
+}
+
+```
+
+```{r}
+# Perform PCA on relevant numeric columns (ensure to exclude non-numeric columns)
+# Perform PCA on relevant numeric columns (ensure to exclude non-numeric columns)
+# Load necessary libraries
+# Assuming merged_data is already defined and contains the necessary columns
+# Perform PCA on relevant numeric columns (ensure to exclude non-numeric columns)
+pca_data <- merged_data %>%
+  select(value_latest_year.x, value_latest_year.y) %>%  # Include only actual numeric variables
+  drop_na()
+
+# Check for constant or zero variance columns
+variance_check <- apply(pca_data, 2, var)
+print(variance_check)  # Display variance for each column
+
+# Remove columns with zero variance
+pca_data <- pca_data[, variance_check != 0]
+
+# Scale the data
+pca_scaled <- scale(pca_data)
+
+# Run PCA
+pca_result <- prcomp(pca_scaled, center = TRUE, scale. = TRUE)
+
+# Summary of PCA results
+summary(pca_result)
+
+# Biplot for PCA
+biplot(pca_result)
+
+```
+
+
+```{r}
+#install.packages("keras")
+
+```
+```{r}
+library(keras)
+```
+
+
+```{r}
+library(tensorflow)
+```
+
+
+```{r}
+#install_tensorflow()
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+```
+
+
+```{r}
+# Neural Network Prediction for Mortality Rates in 2030
+
+# Load necessary libraries
+library(neuralnet)
+library(caret)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+
+# Load datasets
+dev_assistance <- read.csv("C:\\Users\\DELL\\Downloads\\Indicator_6.a.1__Total_official_development_assistance_gross_disbursement_for_water_supply_and_sanitation_by_recipient_countries_millions_of_constant_2017_United_States_dollars.csv")
+health_regulations <- read.csv("C:\\Users\\DELL\\Downloads\\Indicator_3.d.1__International_Health_Regulations_IHR_capacity_by_type_of_IHR_capacity_percent.csv")
+mortality_rate <- read.csv("C:\\Users\\DELL\\Downloads\\Indicator_3.9.2__Mortality_rate_attributed_to_unsafe_water_unsafe_sanitation_and_lack_of_hygiene_deaths_per_100000_population.csv")
+
+# Clean and preprocess data
+dev_assistance_clean <- dev_assistance %>% 
+  drop_na(value_latest_year) %>%
+  select(geoAreaName, value_latest_year)
+
+mortality_rate_clean <- mortality_rate %>% 
+  drop_na(value_latest_year) %>%
+  select(geoAreaName, value_latest_year)
+
+# Merge datasets
+merged_data <- merge(dev_assistance_clean, mortality_rate_clean, by = "geoAreaName", all = FALSE)
+
+# Rename columns for clarity
+colnames(merged_data) <- c("Country", "Development_Assistance", "Mortality_Rate")
+
+# Normalize the data
+normalize <- function(x) {
+  return((x - min(x)) / (max(x) - min(x)))
+}
+
+merged_data_norm <- as.data.frame(lapply(merged_data[,c("Development_Assistance", "Mortality_Rate")], normalize))
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Split the data into training and testing sets
+train_indices <- createDataPartition(merged_data_norm$Mortality_Rate, p = 0.7, list = FALSE)
+train_data <- merged_data_norm[train_indices,]
+test_data <- merged_data_norm[-train_indices,]
+
+# Prepare the neural network formula
+nn_formula <- as.formula("Mortality_Rate ~ Development_Assistance")
+
+# Train the neural network
+nn_model <- neuralnet(
+  nn_formula, 
+  data = train_data, 
+  hidden = c(5,3),  # Two hidden layers with 5 and 3 neurons
+  linear.output = TRUE,
+  threshold = 0.01,
+  stepmax = 1000000
+)
+
+# Plot the neural network
+plot(nn_model)
+
+# Predict on test data using the neuralnet model
+nn_predictions <- predict(nn_model, test_data[,"Development_Assistance", drop = FALSE])
+
+# Denormalize predictions
+predict_original <- nn_predictions * 
+  (max(merged_data$Mortality_Rate) - min(merged_data$Mortality_Rate)) + 
+  min(merged_data$Mortality_Rate)
+
+actual_original <- test_data$Mortality_Rate * 
+  (max(merged_data$Mortality_Rate) - min(merged_data$Mortality_Rate)) + 
+  min(merged_data$Mortality_Rate)
+
+
+
+
+
+# Predict 2030 Mortality Rates
+# Assume a simple projection of development assistance
+future_dev_assistance <- merged_data$Development_Assistance * 1.2  # 20% increase projection
+
+# Normalize future development assistance
+future_dev_assistance_norm <- normalize(future_dev_assistance)
+
+# Compute predictions for 2030
+future_predictions <- predict(nn_model, data.frame(Development_Assistance = future_dev_assistance_norm))
+
+# Denormalize predictions
+future_mortality_predictions <- future_predictions * 
+  (max(merged_data$Mortality_Rate) - min(merged_data$Mortality_Rate)) + 
+  min(merged_data$Mortality_Rate)
+
+# Create results dataframe
+results_2030 <- data.frame(
+  Country = merged_data$Country,
+  Development_Assistance_2030 = future_dev_assistance,
+  Predicted_Mortality_Rate_2030 = future_mortality_predictions
+)
+
+# Sort by predicted mortality rate
+results_2030 <- results_2030[order(results_2030$Predicted_Mortality_Rate_2030),]
+
+# Print and save results
+print(results_2030)
+write.csv(results_2030, "mortality_predictions_2030.csv", row.names = FALSE)
+
+# Visualization of predictions
+predictions_plot <- ggplot(results_2030, aes(x = Development_Assistance_2030, y = Predicted_Mortality_Rate_2030)) +
+  geom_point(aes(color = Predicted_Mortality_Rate_2030)) +
+  scale_color_gradient(low = "green", high = "red") +
+  labs(
+    title = "Predicted 2030 Mortality Rates vs Development Assistance",
+    x = "Projected Development Assistance (2030)",
+    y = "Predicted Mortality Rate",
+    color = "Mortality Rate"
+  ) +
+  theme_minimal()
+
+# Save the plot
+ggsave("mortality_predictions_2030_plot.png", predictions_plot, width = 10, height = 6)
+
+
+```
+```{r}
+```
+
+
+```{r}
+#install.packages("randomForest")
+```
+
+
+```{r}
+library(randomForest)
+# Load your datasets
+dev_assistance <- read.csv("C:\\Users\\DELL\\Downloads\\Indicator_6.a.1__Total_official_development_assistance_gross_disbursement_for_water_supply_and_sanitation_by_recipient_countries_millions_of_constant_2017_United_States_dollars.csv")
+health_regulations <- read.csv("C:\\Users\\DELL\\Downloads\\Indicator_3.d.1__International_Health_Regulations_IHR_capacity_by_type_of_IHR_capacity_percent.csv")
+mortality_rate <- read.csv("C:\\Users\\DELL\\Downloads\\Indicator_3.9.2__Mortality_rate_attributed_to_unsafe_water_unsafe_sanitation_and_lack_of_hygiene_deaths_per_100000_population.csv")
+
+# Clean and preprocess data
+dev_assistance_clean <- dev_assistance %>% 
+  drop_na(value_latest_year) %>%
+  select(geoAreaName, value_latest_year)
+
+mortality_rate_clean <- mortality_rate %>% 
+  drop_na(value_latest_year) %>%
+  select(geoAreaName, value_latest_year)
+
+# Merge datasets
+merged_data <- merge(dev_assistance_clean, mortality_rate_clean, by = "geoAreaName", all = FALSE)
+
+# Rename columns for clarity
+colnames(merged_data) <- c("Country", "Development_Assistance", "Mortality_Rate")
+
+# Normalize the data (optional, if required)
+normalize <- function(x) {
+  return((x - min(x)) / (max(x) - min(x)))
+}
+merged_data_norm <- as.data.frame(lapply(merged_data[,c("Development_Assistance", "Mortality_Rate")], normalize))
+
+# Split the data into training and testing sets
+set.seed(123)  # For reproducibility
+train_indices <- createDataPartition(merged_data_norm$Mortality_Rate, p = 0.7, list = FALSE)
+train_data <- merged_data_norm[train_indices,]
+test_data <- merged_data_norm[-train_indices,]
+
+# Train the Random Forest model
+rf_model <- randomForest(Mortality_Rate ~ Development_Assistance, data = train_data, ntree = 100)
+
+# Print model summary
+print(rf_model)
+
+# Make predictions on test data
+rf_predictions <- predict(rf_model, newdata = test_data)
+
+# Denormalize predictions (if you normalized the data)
+rf_predict_original <- rf_predictions * 
+  (max(merged_data$Mortality_Rate) - min(merged_data$Mortality_Rate)) + 
+  min(merged_data$Mortality_Rate)
+
+# Denormalize actual values (if you normalized the data)
+actual_original <- test_data$Mortality_Rate * 
+  (max(merged_data$Mortality_Rate) - min(merged_data$Mortality_Rate)) + 
+  min(merged_data$Mortality_Rate)
+
+
+
+# Predict for 2030 (assuming a 20% increase in Development Assistance)
+future_dev_assistance <- merged_data$Development_Assistance * 1.2  # 20% increase projection
+
+# Normalize the future Development Assistance
+future_dev_assistance_norm <- normalize(future_dev_assistance)
+
+# Make future predictions
+future_predictions <- predict(rf_model, newdata = data.frame(Development_Assistance = future_dev_assistance_norm))
+
+# Denormalize future predictions
+future_mortality_predictions <- future_predictions * 
+  (max(merged_data$Mortality_Rate) - min(merged_data$Mortality_Rate)) + 
+  min(merged_data$Mortality_Rate)
+
+# Create results dataframe for 2030
+results_2030 <- data.frame(
+  Country = merged_data$Country,
+  Development_Assistance_2030 = future_dev_assistance,
+  Predicted_Mortality_Rate_2030 = future_mortality_predictions
+)
+
+# Sort by predicted mortality rate
+results_2030 <- results_2030[order(results_2030$Predicted_Mortality_Rate_2030),]
+
+# Print and save results
+print(results_2030)
+write.csv(results_2030, "mortality_predictions_2030.csv", row.names = FALSE)
+
+# Visualization of predictions
+predictions_plot <- ggplot(results_2030, aes(x = Development_Assistance_2030, y = Predicted_Mortality_Rate_2030)) +
+  geom_point(aes(color = Predicted_Mortality_Rate_2030)) +
+  scale_color_gradient(low = "green", high = "red") +
+  labs(
+    title = "Predicted 2030 Mortality Rates vs Development Assistance",
+    x = "Projected Development Assistance (2030)",
+    y = "Predicted Mortality Rate",
+    color = "Mortality Rate"
+  ) +
+  theme_minimal()
+
+# Save the plot
+ggsave("mortality_predictions_2030_plot.png", predictions_plot, width = 10, height = 6)
+```
+
+```{r}
+# Load necessary library
+library(Metrics)
+
+# Neural Network Metrics
+nn_mae <- mae(actual_original, predict_original)
+
+
+# Random Forest Metrics
+rf_mae <- mae(actual_original, rf_predict_original)
+
+
+# Print results
+cat("Neural Network Metrics:\n")
+cat("MAE:", nn_mae,  "\n\n")
+
+cat("Random Forest Metrics:\n")
+cat("MAE:", rf_mae,  "\n")
+
+```
+
+
+
+
